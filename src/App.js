@@ -139,14 +139,55 @@ const App = () => {
   const [currentTheme, setCurrentTheme] = useState('light');
 
   //設定可變動的資料
+  //first：先把資料寫死來測試
   const [currentWeather, setCurrentWeather] = useState({
     locationName: '臺北市',
     description: '多雲時晴',
     windSpeed: 1.1,
-    temperature: 22.9,
+    temperature: Math.round(22.9),
     rainPossibility: 48.3,
     observationTime: '2020-12-12 22:10:00',
   });
+  //second: 即將利用setCurrentWeather去接下面fetch來的資料
+
+  //設定按鈕refresh 的fetch function
+  const AUTHORIZATION_KEY = 'CWB-3D1D7CD4-71F0-4ED6-8753-0EA6A7ED379F';
+  const LOCATION_NAME = '臺北';
+
+  const handleClick = function () {
+    // console.log(123);
+    fetch(
+      `https://opendata.cwb.gov.tw/api/v1/rest/datastore/O-A0003-001?Authorization=${AUTHORIZATION_KEY}&locationName=${LOCATION_NAME}`
+    )
+      .then((response) => response.json())
+      .then((data) => {
+        // console.log(data);
+
+        const locationData = data.records.location[0];
+        // console.log(locationData);
+
+        //比較困難的，整理array後去拿裡面的 WDSD 和 TEMP
+        const weatherElements = locationData.weatherElement.reduce(
+          (neededElements, item) => {
+            if (['WDSD', 'TEMP'].includes(item.elementName)) {
+              neededElements[item.elementName] = item.elementValue;
+            }
+            return neededElements;
+          },
+          {}
+        );
+        // console.log(weatherElements);
+
+        setCurrentWeather({
+          locationName: locationData.locationName,
+          description: '多雲時晴',
+          windSpeed: weatherElements.WDSD,
+          temperature: Math.round(weatherElements.TEMP) ,
+          rainPossibility: 48.3,
+          observationTime: locationData.time.obsTime,
+        });
+      });
+  };
 
   return (
     // 透過ThemeProvider 可以將 theme=theme.dark 放進其包住的每一個component
@@ -171,7 +212,8 @@ const App = () => {
             <RainIcon />
             {currentWeather.rainPossibility} %
           </Rain>
-          <Refresh>
+          {/* 按下refresh 去啟動 function handleClick 去fetch 氣象局的資料 */}
+          <Refresh onClick={handleClick}>
             {/* 我們只想顯示小時與分鐘  因此做以下改寫  1.利用intl換成台灣顯示 2.並且使用dayjs修復safari無法顯示字串時間的問題 */}
             {/* 原先寫法 */}
             {/* 最後觀測時間：{currentWeather.observationTime} */}
