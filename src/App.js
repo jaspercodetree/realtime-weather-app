@@ -1,5 +1,5 @@
 // 引入React才能使用component  引入useState來使用hooks
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 
 // 引入emotion套件
 import styled from '@emotion/styled';
@@ -33,9 +33,9 @@ const WeatherCard = styled.div`
   padding: 30px 15px;
 `;
 
-// 可以透過觀察props 看到從父層傳來的 theme資料
+// 可以把下面code移進去``  透過觀察props 看到從父層傳來的 theme資料
+// ${(props) => console.log(props)}
 const Location = styled.div`
-  ${(props) => console.log(props)}
   font-size: 28px;
   color: ${({ theme }) => theme.titleColor};
   margin-bottom: 20px;
@@ -135,6 +135,7 @@ const theme = {
 };
 
 const App = () => {
+  console.log('invoke function component');
   //設定可變動的主題樣式
   const [currentTheme, setCurrentTheme] = useState('light');
 
@@ -154,7 +155,13 @@ const App = () => {
   const AUTHORIZATION_KEY = 'CWB-3D1D7CD4-71F0-4ED6-8753-0EA6A7ED379F';
   const LOCATION_NAME = '臺北';
 
-  const handleClick = function () {
+  // 利用useEffect 讓畫面一載入 以及按refresh時都更新
+  useEffect(() => {
+    console.log('execute function in useEffect');
+    fetchCurrentWeather();
+  }, []);
+
+  const fetchCurrentWeather = function () {
     // console.log(123);
     fetch(
       `https://opendata.cwb.gov.tw/api/v1/rest/datastore/O-A0003-001?Authorization=${AUTHORIZATION_KEY}&locationName=${LOCATION_NAME}`
@@ -182,7 +189,7 @@ const App = () => {
           locationName: locationData.locationName,
           description: '多雲時晴',
           windSpeed: weatherElements.WDSD,
-          temperature: Math.round(weatherElements.TEMP) ,
+          temperature: Math.round(weatherElements.TEMP),
           rainPossibility: 48.3,
           observationTime: locationData.time.obsTime,
         });
@@ -194,6 +201,7 @@ const App = () => {
     // 如同 <Container theme=theme.dark> <WeatherCard theme=theme.dark>...每一個都建好 可傳值props給子層
     <ThemeProvider theme={theme[currentTheme]}>
       <Container>
+        {console.log('render')}
         <WeatherCard>
           <Location>{currentWeather.locationName}</Location>
           <Description>{currentWeather.description}</Description>
@@ -213,7 +221,8 @@ const App = () => {
             {currentWeather.rainPossibility} %
           </Rain>
           {/* 按下refresh 去啟動 function handleClick 去fetch 氣象局的資料 */}
-          <Refresh onClick={handleClick}>
+          {/* 後面加入 useEffect 讓畫面一載入 以及按refresh時都更新 因此改handleClick名為fetchCurrentWeather */}
+          <Refresh onClick={fetchCurrentWeather}>
             {/* 我們只想顯示小時與分鐘  因此做以下改寫  1.利用intl換成台灣顯示 2.並且使用dayjs修復safari無法顯示字串時間的問題 */}
             {/* 原先寫法 */}
             {/* 最後觀測時間：{currentWeather.observationTime} */}
