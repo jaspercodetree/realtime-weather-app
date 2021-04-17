@@ -11,6 +11,7 @@ import { ReactComponent as DayCloudyIcon } from './images/day-cloudy.svg';
 import { ReactComponent as AirFlowIcon } from './images/airFlow.svg';
 import { ReactComponent as RainIcon } from './images/rain.svg';
 import { ReactComponent as RefreshIcon } from './images/refresh.svg';
+import { ReactComponent as LoadingIcon } from './images/loading.svg';
 
 //引入dayjs解決Safari 不支援 new Date('2021-12-12 10:10:00') 字串的問題
 import dayjs from 'dayjs';
@@ -106,6 +107,17 @@ const Refresh = styled.div`
     height: 15px;
     margin-left: 10px;
     cursor: pointer;
+    animation: rotate infinite 1.5s linear;
+    animation-duration: ${({ isLoading }) => (isLoading ? '1.5s' : '0s')};
+  }
+
+  @keyframes rotate {
+    from {
+      transform: rotate(360deg);
+    }
+    to {
+      transform: rotate(0deg);
+    }
   }
 `;
 
@@ -148,7 +160,20 @@ const App = () => {
     temperature: Math.round(22.9),
     rainPossibility: 48.3,
     observationTime: '2020-12-12 22:10:00',
+    isLoading: true,
   });
+
+  //可以透過解構賦值，讓JSX可以寫得更精簡 例如原本寫currentWeather.locationName 改成只要寫locationName
+  const {
+    locationName,
+    description,
+    windSpeed,
+    temperature,
+    rainPossibility,
+    observationTime,
+    isLoading,
+  } = currentWeather;
+
   //second: 即將利用setCurrentWeather去接下面fetch來的資料
 
   //設定按鈕refresh 的fetch function
@@ -163,6 +188,13 @@ const App = () => {
 
   const fetchCurrentWeather = function () {
     // console.log(123);
+
+    // 為了要讓除了一開始載入外，當按下refresh時也要去顯示loading狀態的圖示，因此要再按下按鈕時，重設isLoading=true，更改setState
+    // 此外，setState如果帶入function，可以取得前一次的資料狀態
+    // 先利用解構賦值和展開...拿到整個物件prevState，再讓後面引入的屬性蓋掉前面重複的部分
+    // 小括弧（） 不用會報錯，要小心
+    setCurrentWeather((prevState) => ({ ...prevState, isLoading: true }));
+
     fetch(
       `https://opendata.cwb.gov.tw/api/v1/rest/datastore/O-A0003-001?Authorization=${AUTHORIZATION_KEY}&locationName=${LOCATION_NAME}`
     )
@@ -192,6 +224,7 @@ const App = () => {
           temperature: Math.round(weatherElements.TEMP),
           rainPossibility: 48.3,
           observationTime: locationData.time.obsTime,
+          isLoading: false,
         });
       });
   };
@@ -203,35 +236,39 @@ const App = () => {
       <Container>
         {console.log('render')}
         <WeatherCard>
-          <Location>{currentWeather.locationName}</Location>
-          <Description>{currentWeather.description}</Description>
+          {/* 因為解構賦值所以改為下面<Location>{currentWeather.locationName}</Location> */}
+          <Location>{locationName}</Location>
+          <Description>{description}</Description>
           <CurrentWeather>
             <Temperature>
-              {currentWeather.temperature}
+              {temperature}
               <Celsius>°C</Celsius>
             </Temperature>
             <DayCloudy />
           </CurrentWeather>
           <AirFlow>
             <AirFlowIcon />
-            {currentWeather.windSpeed} m/h
+            {windSpeed} m/h
           </AirFlow>
           <Rain>
             <RainIcon />
-            {currentWeather.rainPossibility} %
+            {rainPossibility} %
           </Rain>
           {/* 按下refresh 去啟動 function handleClick 去fetch 氣象局的資料 */}
           {/* 後面加入 useEffect 讓畫面一載入 以及按refresh時都更新 因此改handleClick名為fetchCurrentWeather */}
-          <Refresh onClick={fetchCurrentWeather}>
-            {/* 我們只想顯示小時與分鐘  因此做以下改寫  1.利用intl換成台灣顯示 2.並且使用dayjs修復safari無法顯示字串時間的問題 */}
+          {/* 透過將isLoading現在的狀態傳給子層，裡用css in js的特性可以直接處理判斷 */}
+          <Refresh onClick={fetchCurrentWeather} isLoading={isLoading}>
+            {/* 我們只想顯示小時與分鐘  因此做以下改寫  
+                1.利用intl換成台灣顯示 2.並且使用dayjs修復safari無法顯示字串時間的問題 */}
             {/* 原先寫法 */}
-            {/* 最後觀測時間：{currentWeather.observationTime} */}
+            {/* 最後觀測時間：{observationTime} */}
             最後觀測時間：
             {new Intl.DateTimeFormat('zh-TW', {
               hour: 'numeric',
               minute: 'numeric',
-            }).format(dayjs(currentWeather.observationTime))}
-            <RefreshIcon />
+            }).format(dayjs(observationTime))}
+            {/* 用三元不等式判斷目前狀態要用哪個icon */}
+            {isLoading ? <LoadingIcon /> : <RefreshIcon />}
           </Refresh>
         </WeatherCard>
       </Container>
