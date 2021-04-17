@@ -146,78 +146,6 @@ const theme = {
   },
 };
 
-const AUTHORIZATION_KEY = 'CWB-3D1D7CD4-71F0-4ED6-8753-0EA6A7ED379F';
-const LOCATION_NAME = '臺北';
-const LOCATION_NAME_FORECAST = '臺北市';
-
-const fetchCurrentWeather = function () {
-  // console.log(123);
-
-  // 為了要讓除了一開始載入外，當按下refresh時也要去顯示loading狀態的圖示，因此要再按下按鈕時，重設isLoading=true，更改setState
-  // 此外，setState如果帶入function，可以取得前一次的資料狀態
-  // 先利用解構賦值和展開...拿到整個物件prevState，再讓後面引入的屬性蓋掉前面重複的部分
-  // 小括弧（） 不用會報錯，要小心
-
-  return fetch(
-    `https://opendata.cwb.gov.tw/api/v1/rest/datastore/O-A0003-001?Authorization=${AUTHORIZATION_KEY}&locationName=${LOCATION_NAME}`
-  )
-    .then((response) => response.json())
-    .then((data) => {
-      // console.log(data);
-
-      const locationData = data.records.location[0];
-      // console.log(locationData);
-
-      //比較困難的，整理array後去拿裡面的 WDSD 和 TEMP
-      const weatherElements = locationData.weatherElement.reduce(
-        (neededElements, item) => {
-          if (['WDSD', 'TEMP'].includes(item.elementName)) {
-            neededElements[item.elementName] = item.elementValue;
-          }
-          return neededElements;
-        },
-        {}
-      );
-      // console.log(weatherElements);
-
-      // 因為有兩支API 每次拉下來都要先保留原先的資料 再補資料  利用setState裡面放function 即可先接資料
-      return {
-        locationName: locationData.locationName,
-        windSpeed: weatherElements.WDSD,
-        temperature: Math.round(weatherElements.TEMP),
-        observationTime: locationData.time.obsTime,
-      };
-    });
-};
-
-const fetchWeatherForecast = function () {
-  return fetch(
-    `https://opendata.cwb.gov.tw/api/v1/rest/datastore/F-C0032-001?Authorization=${AUTHORIZATION_KEY}&locationName=${LOCATION_NAME_FORECAST}`
-  )
-    .then((response) => response.json())
-    .then((data) => {
-      const locationData = data.records.location[0];
-      // console.log(locationData);
-
-      const weatherElements = locationData.weatherElement.reduce(
-        (neededElements, item) => {
-          if (['Wx', 'PoP', 'CI'].includes(item.elementName)) {
-            neededElements[item.elementName] = item.time[0].parameter;
-          }
-          return neededElements;
-        },
-        {}
-      );
-
-      return {
-        description: weatherElements.Wx.parameterName,
-        weatherCode: weatherElements.Wx.parameterValue,
-        rainPossibility: weatherElements.PoP.parameterName,
-        comfortability: weatherElements.CI.parameterName,
-      };
-    });
-};
-
 const App = () => {
   console.log('invoke function component');
   //設定可變動的主題樣式
@@ -252,41 +180,91 @@ const App = () => {
 
   //second: 即將利用setWeatherElement去接下面fetch來的資料
 
-  // 利用useEffect 讓畫面一載入 以及按refresh時都更新
+  //設定按鈕refresh 的fetch function
+  const AUTHORIZATION_KEY = 'CWB-3D1D7CD4-71F0-4ED6-8753-0EA6A7ED379F';
+  const LOCATION_NAME = '臺北';
+  const LOCATION_NAME_FORECAST = '臺北市';
 
-  //透過async 去等 回傳回來的兩個promise function
+  // 利用useEffect 讓畫面一載入 以及按refresh時都更新
   useEffect(() => {
     console.log('execute function in useEffect');
-
-    // const fetchData = async () => {
-    //   const data = await Promise.all([
-    //     fetchCurrentWeather(),
-    //     fetchWeatherForecast(),
-    //   ]);
-
-    //   console.log(data);
-    // };
-
-    // 改寫成解構賦值  等到兩個值都拿到後再setState
-    const fetchData = async () => {
-      //拉取資料前先設定isLoading:false 因為現在沒有預設值
-      //箭頭函式 如果有return必須包小括號
-      setWeatherElement((prevState) => ({ ...prevState, isLoading: false }));
-
-      const [currentWeather, weatherForecast] = await Promise.all([
-        fetchCurrentWeather(),
-        fetchWeatherForecast(),
-      ]);
-
-      setWeatherElement({
-        ...currentWeather,
-        ...weatherForecast,
-        isLoading: false,
-      });
-    };
-
-    fetchData();
+    fetchCurrentWeather();
+    fetchWeatherForecast();
   }, []);
+
+  const fetchCurrentWeather = function () {
+    // console.log(123);
+
+    // 為了要讓除了一開始載入外，當按下refresh時也要去顯示loading狀態的圖示，因此要再按下按鈕時，重設isLoading=true，更改setState
+    // 此外，setState如果帶入function，可以取得前一次的資料狀態
+    // 先利用解構賦值和展開...拿到整個物件prevState，再讓後面引入的屬性蓋掉前面重複的部分
+    // 小括弧（） 不用會報錯，要小心
+    setWeatherElement((prevState) => ({ ...prevState, isLoading: true }));
+
+    fetch(
+      `https://opendata.cwb.gov.tw/api/v1/rest/datastore/O-A0003-001?Authorization=${AUTHORIZATION_KEY}&locationName=${LOCATION_NAME}`
+    )
+      .then((response) => response.json())
+      .then((data) => {
+        // console.log(data);
+
+        const locationData = data.records.location[0];
+        // console.log(locationData);
+
+        //比較困難的，整理array後去拿裡面的 WDSD 和 TEMP
+        const weatherElements = locationData.weatherElement.reduce(
+          (neededElements, item) => {
+            if (['WDSD', 'TEMP'].includes(item.elementName)) {
+              neededElements[item.elementName] = item.elementValue;
+            }
+            return neededElements;
+          },
+          {}
+        );
+        // console.log(weatherElements);
+
+        // 因為有兩支API 每次拉下來都要先保留原先的資料 再補資料  利用setState裡面放function 即可先接資料
+        setWeatherElement((prevState) => ({
+          ...prevState,
+          locationName: locationData.locationName,
+          windSpeed: weatherElements.WDSD,
+          temperature: Math.round(weatherElements.TEMP),
+          observationTime: locationData.time.obsTime,
+          isLoading: false,
+        }));
+      });
+  };
+
+  const fetchWeatherForecast = function () {
+    setWeatherElement((prevState) => ({ ...prevState, isLoading: true }));
+
+    fetch(
+      `https://opendata.cwb.gov.tw/api/v1/rest/datastore/F-C0032-001?Authorization=${AUTHORIZATION_KEY}&locationName=${LOCATION_NAME_FORECAST}`
+    )
+      .then((response) => response.json())
+      .then((data) => {
+        const locationData = data.records.location[0];
+        // console.log(locationData);
+
+        const weatherElements = locationData.weatherElement.reduce(
+          (neededElements, item) => {
+            if (['Wx', 'PoP', 'CI'].includes(item.elementName)) {
+              neededElements[item.elementName] = item.time[0].parameter;
+            }
+            return neededElements;
+          },
+          {}
+        );
+
+        setWeatherElement((prevState) => ({
+          ...prevState,
+          description: weatherElements.Wx.parameterName,
+          weatherCode: weatherElements.Wx.parameterValue,
+          rainPossibility: weatherElements.PoP.parameterName,
+          comfortability: weatherElements.CI.parameterName,
+        }));
+      });
+  };
 
   return (
     // 透過ThemeProvider 可以將 theme=theme.dark 放進其包住的每一個component
