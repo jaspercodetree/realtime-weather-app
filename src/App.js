@@ -153,37 +153,43 @@ const App = () => {
 
   //設定可變動的資料
   //first：先把資料寫死來測試
-  const [currentWeather, setCurrentWeather] = useState({
-    locationName: '臺北市',
-    description: '多雲時晴',
-    windSpeed: 1.1,
-    temperature: Math.round(22.9),
-    rainPossibility: 48.3,
-    observationTime: '2020-12-12 22:10:00',
+  //當兩支ＡＰＩ都寫好時  就可以把它清空
+  const [weatherElement, setWeatherElement] = useState({
+    locationName: '',
+    description: '',
+    windSpeed: 0,
+    temperature: 0,
+    rainPossibility: 0,
+    observationTime: new Date(),
+    comfortability: '0',
+    weatherCode: '0',
     isLoading: true,
   });
 
-  //可以透過解構賦值，讓JSX可以寫得更精簡 例如原本寫currentWeather.locationName 改成只要寫locationName
+  //可以透過解構賦值，讓JSX可以寫得更精簡 weatherElement.locationName 改成只要寫locationName
   const {
     locationName,
     description,
+    comfortability,
     windSpeed,
     temperature,
     rainPossibility,
     observationTime,
     isLoading,
-  } = currentWeather;
+  } = weatherElement;
 
-  //second: 即將利用setCurrentWeather去接下面fetch來的資料
+  //second: 即將利用setWeatherElement去接下面fetch來的資料
 
   //設定按鈕refresh 的fetch function
   const AUTHORIZATION_KEY = 'CWB-3D1D7CD4-71F0-4ED6-8753-0EA6A7ED379F';
   const LOCATION_NAME = '臺北';
+  const LOCATION_NAME_FORECAST = '臺北市';
 
   // 利用useEffect 讓畫面一載入 以及按refresh時都更新
   useEffect(() => {
     console.log('execute function in useEffect');
     fetchCurrentWeather();
+    fetchWeatherForecast();
   }, []);
 
   const fetchCurrentWeather = function () {
@@ -193,7 +199,7 @@ const App = () => {
     // 此外，setState如果帶入function，可以取得前一次的資料狀態
     // 先利用解構賦值和展開...拿到整個物件prevState，再讓後面引入的屬性蓋掉前面重複的部分
     // 小括弧（） 不用會報錯，要小心
-    setCurrentWeather((prevState) => ({ ...prevState, isLoading: true }));
+    setWeatherElement((prevState) => ({ ...prevState, isLoading: true }));
 
     fetch(
       `https://opendata.cwb.gov.tw/api/v1/rest/datastore/O-A0003-001?Authorization=${AUTHORIZATION_KEY}&locationName=${LOCATION_NAME}`
@@ -217,15 +223,46 @@ const App = () => {
         );
         // console.log(weatherElements);
 
-        setCurrentWeather({
+        // 因為有兩支API 每次拉下來都要先保留原先的資料 再補資料  利用setState裡面放function 即可先接資料
+        setWeatherElement((prevState) => ({
+          ...prevState,
           locationName: locationData.locationName,
-          description: '多雲時晴',
           windSpeed: weatherElements.WDSD,
           temperature: Math.round(weatherElements.TEMP),
-          rainPossibility: 48.3,
           observationTime: locationData.time.obsTime,
           isLoading: false,
-        });
+        }));
+      });
+  };
+
+  const fetchWeatherForecast = function () {
+    setWeatherElement((prevState) => ({ ...prevState, isLoading: true }));
+
+    fetch(
+      `https://opendata.cwb.gov.tw/api/v1/rest/datastore/F-C0032-001?Authorization=${AUTHORIZATION_KEY}&locationName=${LOCATION_NAME_FORECAST}`
+    )
+      .then((response) => response.json())
+      .then((data) => {
+        const locationData = data.records.location[0];
+        // console.log(locationData);
+
+        const weatherElements = locationData.weatherElement.reduce(
+          (neededElements, item) => {
+            if (['Wx', 'PoP', 'CI'].includes(item.elementName)) {
+              neededElements[item.elementName] = item.time[0].parameter;
+            }
+            return neededElements;
+          },
+          {}
+        );
+
+        setWeatherElement((prevState) => ({
+          ...prevState,
+          description: weatherElements.Wx.parameterName,
+          weatherCode: weatherElements.Wx.parameterValue,
+          rainPossibility: weatherElements.PoP.parameterName,
+          comfortability: weatherElements.CI.parameterName,
+        }));
       });
   };
 
@@ -238,7 +275,9 @@ const App = () => {
         <WeatherCard>
           {/* 因為解構賦值所以改為下面<Location>{currentWeather.locationName}</Location> */}
           <Location>{locationName}</Location>
-          <Description>{description}</Description>
+          <Description>
+            {description} {comfortability}
+          </Description>
           <CurrentWeather>
             <Temperature>
               {temperature}
@@ -257,7 +296,15 @@ const App = () => {
           {/* 按下refresh 去啟動 function handleClick 去fetch 氣象局的資料 */}
           {/* 後面加入 useEffect 讓畫面一載入 以及按refresh時都更新 因此改handleClick名為fetchCurrentWeather */}
           {/* 透過將isLoading現在的狀態傳給子層，裡用css in js的特性可以直接處理判斷 */}
-          <Refresh onClick={fetchCurrentWeather} isLoading={isLoading}>
+
+          {/* 多了要拉第二支ＡＰＩ後 記得onclick要再加上fetchWeatherForecast */}
+          <Refresh
+            onClick={() => {
+              fetchCurrentWeather();
+              fetchWeatherForecast();
+            }}
+            isLoading={isLoading}
+          >
             {/* 我們只想顯示小時與分鐘  因此做以下改寫  
                 1.利用intl換成台灣顯示 2.並且使用dayjs修復safari無法顯示字串時間的問題 */}
             {/* 原先寫法 */}
