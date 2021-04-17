@@ -1,5 +1,5 @@
 // 引入React才能使用component  引入useState來使用hooks
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 
 // 引入emotion套件
 import styled from '@emotion/styled';
@@ -252,41 +252,30 @@ const App = () => {
 
   //second: 即將利用setWeatherElement去接下面fetch來的資料
 
-  // 利用useEffect 讓畫面一載入 以及按refresh時都更新
+  // 讓畫面一載入 以及按refresh時都更新
+  const fetchData = useCallback(async () => {
+    //拉取資料前先設定isLoading:false 因為現在沒有預設值
+    //箭頭函式 如果有return必須包小括號
+    setWeatherElement((prevState) => ({ ...prevState, isLoading: true }));
+
+    const [currentWeather, weatherForecast] = await Promise.all([
+      fetchCurrentWeather(),
+      fetchWeatherForecast(),
+    ]);
+
+    setWeatherElement({
+      ...currentWeather,
+      ...weatherForecast,
+      isLoading: false,
+    });
+  }, []);
 
   //透過async 去等 回傳回來的兩個promise function
   useEffect(() => {
     console.log('execute function in useEffect');
 
-    // const fetchData = async () => {
-    //   const data = await Promise.all([
-    //     fetchCurrentWeather(),
-    //     fetchWeatherForecast(),
-    //   ]);
-
-    //   console.log(data);
-    // };
-
-    // 改寫成解構賦值  等到兩個值都拿到後再setState
-    const fetchData = async () => {
-      //拉取資料前先設定isLoading:false 因為現在沒有預設值
-      //箭頭函式 如果有return必須包小括號
-      setWeatherElement((prevState) => ({ ...prevState, isLoading: false }));
-
-      const [currentWeather, weatherForecast] = await Promise.all([
-        fetchCurrentWeather(),
-        fetchWeatherForecast(),
-      ]);
-
-      setWeatherElement({
-        ...currentWeather,
-        ...weatherForecast,
-        isLoading: false,
-      });
-    };
-
     fetchData();
-  }, []);
+  }, [fetchData]);
 
   return (
     // 透過ThemeProvider 可以將 theme=theme.dark 放進其包住的每一個component
@@ -320,13 +309,7 @@ const App = () => {
           {/* 透過將isLoading現在的狀態傳給子層，裡用css in js的特性可以直接處理判斷 */}
 
           {/* 多了要拉第二支ＡＰＩ後 記得onclick要再加上fetchWeatherForecast */}
-          <Refresh
-            onClick={() => {
-              fetchCurrentWeather();
-              fetchWeatherForecast();
-            }}
-            isLoading={isLoading}
-          >
+          <Refresh onClick={fetchData} isLoading={isLoading}>
             {/* 我們只想顯示小時與分鐘  因此做以下改寫  
                 1.利用intl換成台灣顯示 2.並且使用dayjs修復safari無法顯示字串時間的問題 */}
             {/* 原先寫法 */}
